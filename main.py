@@ -10,7 +10,7 @@ def get_vix_price():
         symbol="VIX",
         screener="america",
         exchange="TVC",
-        interval=Interval.INTERVAL_1_MIN
+        interval=Interval.INTERVAL_1_MINUTE
     )
     data = vix.get_analysis()
     return data.indicators["close"]
@@ -22,7 +22,7 @@ def get_vix_history():
         symbol="VIX",
         screener="america",
         exchange="TVC",
-        interval=Interval.INTERVAL_1_MIN
+        interval=Interval.INTERVAL_1_MINUTE
     )
     data = vix.get_analysis()
     candles = data.indicators.get("Recommend.Other", None)
