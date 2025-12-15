@@ -7,7 +7,6 @@ from tradingview_ta import TA_Handler, Interval
 # SUA CHAVE DO RAPIDAPI
 RAPIDAPI_KEY = "296ad269ddmsh9a51510151a5714p118b65jsn9ac449b7b4d4"
 
-
 def get_vix_price():
     """Preço atual do VIX via TradingView (1m)."""
     vix = TA_Handler(
@@ -28,7 +27,7 @@ def get_vix_history():
     querystring = {
         "symbol": "^VIX",
         "interval": "1m",
-        "range": "2h"   # ~120 candles de 1m
+        "range": "1d"   # pega o dia inteiro
     }
 
     headers = {
@@ -40,13 +39,18 @@ def get_vix_history():
 
     try:
         timestamps = r["chart"]["result"][0]["timestamp"]
-        closes = r["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+        quote = r["chart"]["result"][0]["indicators"]["quote"][0]
+
+        opens = quote["open"]
+        closes = quote["close"]
+
     except Exception:
         print("Erro ao obter histórico:", r)
         return None
 
     df = pd.DataFrame({
         "timestamp": [datetime.fromtimestamp(t) for t in timestamps],
+        "open": opens,
         "close": closes
     })
 
@@ -80,6 +84,10 @@ def process_vix():
     # garantir ordenação
     dados = dados.sort_values("timestamp").reset_index(drop=True)
 
+    # abertura do dia
+    abertura_dia = float(dados.iloc[0]["open"])
+    var_abertura = variacao(preco_atual, abertura_dia)
+
     # preços de 1m atrás
     preco_5 = float(dados.iloc[-5]["close"])
     preco_15 = float(dados.iloc[-15]["close"])
@@ -92,7 +100,9 @@ def process_vix():
     var_60 = variacao(preco_atual, preco_60)
 
     print("\n--- FECHAMENTOS E VARIAÇÕES ---")
-    print(f"Atual (1m):     {preco_atual:.4f}")
+    print(f"Abertura do dia: {abertura_dia:.4f}")
+    print(f"Atual (1m):     {preco_atual:.4f}  | var vs abertura: {var_abertura:.2f}%")
+
     print(f"5 min atrás:    {preco_5:.4f}   | var vs atual: {var_5:.2f}%")
     print(f"15 min atrás:   {preco_15:.4f}  | var vs atual: {var_15:.2f}%")
     print(f"30 min atrás:   {preco_30:.4f}  | var vs atual: {var_30:.2f}%")
@@ -101,11 +111,13 @@ def process_vix():
     # Registrar tudo em CSV
     registro = {
         "timestamp": agora,
+        "vix_abertura": abertura_dia,
         "vix_atual_1m": preco_atual,
         "vix_5min_ago": preco_5,
         "vix_15min_ago": preco_15,
         "vix_30min_ago": preco_30,
         "vix_60min_ago": preco_60,
+        "var_vs_abertura_pct": var_abertura,
         "var_vs_5min_pct": var_5,
         "var_vs_15min_pct": var_15,
         "var_vs_30min_pct": var_30,
