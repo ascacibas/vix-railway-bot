@@ -1,13 +1,11 @@
 import time
 from datetime import datetime
 import pandas as pd
-
 from tradingview_ta import TA_Handler, Interval
-from tvDatafeed import TvDatafeed, Interval as TVInterval
 
 
 def get_vix_price():
-    """Retorna o preço atual do VIX (1 minuto)."""
+    """Retorna o preço atual do VIX."""
     vix = TA_Handler(
         symbol="VIX",
         screener="america",
@@ -18,57 +16,62 @@ def get_vix_price():
     return data.indicators["close"]
 
 
-def get_vix_history(n_bars=120):
-    """Retorna histórico de n_bars candles de 1 minuto do VIX."""
-    tv = TvDatafeed()  # login anônimo
-    candles = tv.get_hist(
-        symbol='VIX',
-        exchange='TVC',
-        interval=TVInterval.in_1_min,
-        n_bars=n_bars
+def get_vix_history():
+    """Retorna candles históricos usando TradingView."""
+    vix = TA_Handler(
+        symbol="VIX",
+        screener="america",
+        exchange="TVC",
+        interval=Interval.INTERVAL_1_MIN
     )
-    return candles
+    data = vix.get_analysis()
+    candles = data.indicators.get("Recommend.Other", None)
+
+    # tradingview_ta não fornece candles diretamente,
+    # então usamos uma técnica alternativa:
+    # pegamos o histórico via "oscillators" e "moving averages"
+    # mas isso não dá candles reais.
+    # Então vamos usar uma API pública alternativa:
+    import requests
+
+    url = "https://query1.finance.yahoo.com/v8/finance/chart/^VIX?interval=1m&range=2h"
+    r = requests.get(url).json()
+
+    timestamps = r["chart"]["result"][0]["timestamp"]
+    closes = r["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+
+    df = pd.DataFrame({
+        "timestamp": timestamps,
+        "close": closes
+    })
+
+    return df
 
 
 def variacao(atual, passado):
-    """Calcula variação percentual entre dois preços."""
     return (atual - passado) / passado * 100
 
 
 def process_vix():
-    """Coleta dados do VIX, calcula variações e salva log."""
     print("\n--- COLETANDO DADOS DO VIX ---")
     agora = datetime.now().isoformat(timespec="seconds")
     print(f"Horário: {agora}")
 
-    try:
-        preco_atual = get_vix_price()
-        print(f"Preço atual do VIX: {preco_atual}")
-    except Exception as e:
-        print("Erro ao pegar preço atual do VIX:", e)
+    preco_atual = get_vix_price()
+    print(f"Preço atual do VIX: {preco_atual}")
+
+    dados = get_vix_history()
+
+    if len(dados) < 60:
+        print("Histórico insuficiente.")
         return
 
-    try:
-        dados = get_vix_history(n_bars=120)
-    except Exception as e:
-        print("Erro ao pegar histórico do VIX:", e)
-        return
+    dados = dados.sort_values("timestamp")
 
-    if dados is None or len(dados) < 60:
-        print("Histórico insuficiente para cálculos.")
-        return
-
-    # Garantir ordenação por tempo
-    dados = dados.sort_index()
-
-    try:
-        preco_5 = dados.iloc[-5]["close"]
-        preco_15 = dados.iloc[-15]["close"]
-        preco_30 = dados.iloc[-30]["close"]
-        preco_60 = dados.iloc[-60]["close"]
-    except Exception as e:
-        print("Erro ao acessar candles específicos:", e)
-        return
+    preco_5 = dados.iloc[-5]["close"]
+    preco_15 = dados.iloc[-15]["close"]
+    preco_30 = dados.iloc[-30]["close"]
+    preco_60 = dados.iloc[-60]["close"]
 
     var_5 = variacao(preco_atual, preco_5)
     var_15 = variacao(preco_atual, preco_15)
@@ -95,17 +98,15 @@ def process_vix():
     }
 
     df = pd.DataFrame([registro])
-    df.to_csv("vix_log.csv", mode="a", header=not pd.io.common.file_exists("vix_log.csv"), index=False)
+    df.to_csv("vix_log.csv", mode="a", header=False, index=False)
 
-    print("Registro salvo em vix_log.csv")
+    print("Registro salvo.")
 
 
 def main():
-    """Loop infinito rodando a cada 60 segundos."""
-    print("Iniciando monitor de VIX na Railway...")
+    print("Monitor de VIX iniciado na Railway...")
     while True:
         process_vix()
-        print("Aguardando 60 segundos para próxima coleta...\n")
         time.sleep(60)
 
 
