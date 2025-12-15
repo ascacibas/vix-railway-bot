@@ -7,6 +7,7 @@ from tradingview_ta import TA_Handler, Interval
 # SUA CHAVE DO RAPIDAPI
 RAPIDAPI_KEY = "296ad269ddmsh9a51510151a5714p118b65jsn9ac449b7b4d4"
 
+
 def get_vix_price():
     """Preço atual do VIX via TradingView (1m)."""
     vix = TA_Handler(
@@ -76,51 +77,39 @@ def process_vix():
         print("Histórico insuficiente.")
         return
 
-    # Reamostrar para candles de 5m, 15m, 30m, 60m
-    df = dados.copy()
-    df.set_index("timestamp", inplace=True)
+    # garantir ordenação
+    dados = dados.sort_values("timestamp").reset_index(drop=True)
 
-    # Reamostragem: último fechamento do período
-    close_5m = df["close"].resample("5T").last()
-    close_15m = df["close"].resample("15T").last()
-    close_30m = df["close"].resample("30T").last()
-    close_60m = df["close"].resample("60T").last()
+    # preços de 1m atrás
+    preco_5 = float(dados.iloc[-5]["close"])
+    preco_15 = float(dados.iloc[-15]["close"])
+    preco_30 = float(dados.iloc[-30]["close"])
+    preco_60 = float(dados.iloc[-60]["close"])
 
-    # Pega o candle FECHADO mais recente de cada timeframe
-    # (descarta candle parcial em formação)
-    if len(close_5m) < 2 or len(close_15m) < 2 or len(close_30m) < 2 or len(close_60m) < 2:
-        print("Ainda não há candles suficientes em algum timeframe.")
-        return
+    var_5 = variacao(preco_atual, preco_5)
+    var_15 = variacao(preco_atual, preco_15)
+    var_30 = variacao(preco_atual, preco_30)
+    var_60 = variacao(preco_atual, preco_60)
 
-    preco_5m_close = close_5m.iloc[-2]   # último candle fechado de 5m
-    preco_15m_close = close_15m.iloc[-2] # último candle fechado de 15m
-    preco_30m_close = close_30m.iloc[-2] # último candle fechado de 30m
-    preco_60m_close = close_60m.iloc[-2] # último candle fechado de 60m
-
-    var_5 = variacao(preco_atual, preco_5m_close)
-    var_15 = variacao(preco_atual, preco_15m_close)
-    var_30 = variacao(preco_atual, preco_30m_close)
-    var_60 = variacao(preco_atual, preco_60m_close)
-
-    print("\n--- COMPARAÇÃO COM FECHAMENTO DE CANDLES ---")
-    print(f"Atual (1m):       {preco_atual:.4f}")
-    print(f"Fech. 5m atrás:   {preco_5m_close:.4f}  | var vs atual: {var_5:.2f}%")
-    print(f"Fech. 15m atrás:  {preco_15m_close:.4f} | var vs atual: {var_15:.2f}%")
-    print(f"Fech. 30m atrás:  {preco_30m_close:.4f} | var vs atual: {var_30:.2f}%")
-    print(f"Fech. 60m atrás:  {preco_60m_close:.4f} | var vs atual: {var_60:.2f}%")
+    print("\n--- FECHAMENTOS E VARIAÇÕES ---")
+    print(f"Atual (1m):     {preco_atual:.4f}")
+    print(f"5 min atrás:    {preco_5:.4f}   | var vs atual: {var_5:.2f}%")
+    print(f"15 min atrás:   {preco_15:.4f}  | var vs atual: {var_15:.2f}%")
+    print(f"30 min atrás:   {preco_30:.4f}  | var vs atual: {var_30:.2f}%")
+    print(f"60 min atrás:   {preco_60:.4f}  | var vs atual: {var_60:.2f}%")
 
     # Registrar tudo em CSV
     registro = {
         "timestamp": agora,
         "vix_atual_1m": preco_atual,
-        "vix_close_5m": preco_5m_close,
-        "vix_close_15m": preco_15m_close,
-        "vix_close_30m": preco_30m_close,
-        "vix_close_60m": preco_60m_close,
-        "var_vs_5m_pct": var_5,
-        "var_vs_15m_pct": var_15,
-        "var_vs_30m_pct": var_30,
-        "var_vs_60m_pct": var_60,
+        "vix_5min_ago": preco_5,
+        "vix_15min_ago": preco_15,
+        "vix_30min_ago": preco_30,
+        "vix_60min_ago": preco_60,
+        "var_vs_5min_pct": var_5,
+        "var_vs_15min_pct": var_15,
+        "var_vs_30min_pct": var_30,
+        "var_vs_60min_pct": var_60,
     }
 
     df_log = pd.DataFrame([registro])
