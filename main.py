@@ -21,33 +21,35 @@ def get_vix_price():
 
 
 def get_vix_history():
-    """Candles de 1 minuto do VIX via Yahoo Finance (RapidAPI)."""
+    url = "https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/get-charts"
 
-    url = "https://apidojo-yahoo-finance-v1.p.rapidapi.com/stock/v2/get-timeseries?symbol=IBM&region=US"
+    querystring = {
+        "symbol": "^VIX",
+        "interval": "1m",
+        "range": "2h"
+    }
 
     headers = {
         "x-rapidapi-key": RAPIDAPI_KEY,
         "x-rapidapi-host": "apidojo-yahoo-finance-v1.p.rapidapi.com"
     }
 
-    r = requests.get(url, headers=headers).json()
+    r = requests.get(url, headers=headers, params=querystring).json()
 
-    if "items" not in r:
+    try:
+        timestamps = r["chart"]["result"][0]["timestamp"]
+        closes = r["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+    except Exception as e:
         print("Erro ao obter histórico:", r)
         return None
 
-    candles = r["items"]
+    df = pd.DataFrame({
+        "timestamp": [datetime.fromtimestamp(t) for t in timestamps],
+        "close": closes
+    })
 
-    df = pd.DataFrame([
-        {
-            "timestamp": datetime.fromtimestamp(c["date"]),
-            "close": float(c["close"])
-        }
-        for c in candles
-    ])
-
-    df = df.sort_values("timestamp")
-    df = df.reset_index(drop=True)
+    df = df.dropna()
+    df = df.sort_values("timestamp").reset_index(drop=True)
 
     return df
 
