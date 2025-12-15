@@ -23,8 +23,7 @@ def get_vix_price():
 def get_vix_history():
     """Candles de 1 minuto do VIX via Alpha Vantage."""
     url = (
-        "https://www.alphavantage.co/query?"
-        "function=TIME_SERIES_INTRADAY&symbol=^VIX&interval=1min&apikey=" + API_KEY
+        "https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=VIX&interval=1min&apikey=" + API_KEY
     )
 
     r = requests.get(url).json()
