@@ -7,6 +7,7 @@ from tradingview_ta import TA_Handler, Interval
 # SUA CHAVE DO RAPIDAPI
 RAPIDAPI_KEY = "296ad269ddmsh9a51510151a5714p118b65jsn9ac449b7b4d4"
 
+
 def get_vix_price():
     """Preço atual do VIX via TradingView (1m)."""
     vix = TA_Handler(
@@ -60,45 +61,10 @@ def get_vix_history():
     return df
 
 
-def get_previous_close():
-    """Obtém o fechamento do dia anterior via Yahoo Finance (RapidAPI)."""
-
-    url = "https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/get-charts"
-
-    querystring = {
-        "symbol": "^VIX",
-        "interval": "1d",
-        "range": "5d"   # pega últimos 5 dias
-    }
-
-    headers = {
-        "x-rapidapi-key": RAPIDAPI_KEY,
-        "x-rapidapi-host": "apidojo-yahoo-finance-v1.p.rapidapi.com"
-    }
-
-    r = requests.get(url, headers=headers, params=querystring).json()
-
-    try:
-        closes = r["chart"]["result"][0]["indicators"]["quote"][0]["close"]
-    except Exception:
-        print("Erro ao obter fechamento anterior:", r)
-        return None
-
-    # Filtrar apenas valores válidos (não None)
-    closes_validos = [c for c in closes if c is not None]
-
-    if len(closes_validos) < 2:
-        print("Fechamentos diários insuficientes ou todos None:", closes)
-        return None
-
-    # penúltimo fechamento válido = dia anterior
-    return float(closes_validos[-2])
-
-
 def variacao(atual, passado):
     if passado == 0:
         return 0.0
-    return (preco_atual - passado) / passado * 100
+    return (atual - passado) / passado * 100
 
 
 def process_vix():
@@ -116,19 +82,12 @@ def process_vix():
         print("Histórico insuficiente.")
         return
 
+    # garantir ordenação
     dados = dados.sort_values("timestamp").reset_index(drop=True)
 
     # abertura do dia
     abertura_dia = float(dados.iloc[0]["open"])
     var_abertura = variacao(preco_atual, abertura_dia)
-
-    # fechamento do dia anterior
-    fechamento_anterior = get_previous_close()
-    if fechamento_anterior is None:
-        print("Não foi possível obter o fechamento anterior (valores None ou insuficientes).")
-        return
-
-    var_fechamento_anterior = variacao(preco_atual, fechamento_anterior)
 
     # preços de 1m atrás
     preco_5 = float(dados.iloc[-5]["close"])
@@ -142,29 +101,24 @@ def process_vix():
     var_60 = variacao(preco_atual, preco_60)
 
     print("\n--- FECHAMENTOS E VARIAÇÕES ---")
-    print(f"Abertura do dia:        {abertura_dia:.4f}")
-    print(f"Fechamento anterior:    {fechamento_anterior:.4f}")
-    print(f"Atual (1m):             {preco_atual:.4f}")
-    print(f"Var vs abertura:        {var_abertura:.2f}%")
-    print(f"Var vs fechamento ant.: {var_fechamento_anterior:.2f}%\n")
+    print(f"Abertura do dia: {abertura_dia:.4f}")
+    print(f"Atual (1m):     {preco_atual:.4f}  | var vs abertura: {var_abertura:.2f}%")
 
-    print(f"5 min atrás:            {preco_5:.4f}   | var vs atual: {var_5:.2f}%")
-    print(f"15 min atrás:           {preco_15:.4f}  | var vs atual: {var_15:.2f}%")
-    print(f"30 min atrás:           {preco_30:.4f}  | var vs atual: {var_30:.2f}%")
-    print(f"60 min atrás:           {preco_60:.4f}  | var vs atual: {var_60:.2f}%")
+    print(f"5 min atrás:    {preco_5:.4f}   | var vs atual: {var_5:.2f}%")
+    print(f"15 min atrás:   {preco_15:.4f}  | var vs atual: {var_15:.2f}%")
+    print(f"30 min atrás:   {preco_30:.4f}  | var vs atual: {var_30:.2f}%")
+    print(f"60 min atrás:   {preco_60:.4f}  | var vs atual: {var_60:.2f}%")
 
     # Registrar tudo em CSV
     registro = {
         "timestamp": agora,
         "vix_abertura": abertura_dia,
-        "vix_fechamento_anterior": fechamento_anterior,
         "vix_atual_1m": preco_atual,
         "vix_5min_ago": preco_5,
         "vix_15min_ago": preco_15,
         "vix_30min_ago": preco_30,
         "vix_60min_ago": preco_60,
         "var_vs_abertura_pct": var_abertura,
-        "var_vs_fechamento_anterior_pct": var_fechamento_anterior,
         "var_vs_5min_pct": var_5,
         "var_vs_15min_pct": var_15,
         "var_vs_30min_pct": var_30,
