@@ -1,11 +1,15 @@
 import time
-from datetime import datetime
+import requests
 import pandas as pd
+from datetime import datetime
 from tradingview_ta import TA_Handler, Interval
 
 
+API_KEY = "J77M946G4RI4XHD3"  # Alpha Vantage
+
+
 def get_vix_price():
-    """Retorna o preço atual do VIX."""
+    """Preço atual do VIX via TradingView."""
     vix = TA_Handler(
         symbol="VIX",
         screener="america",
@@ -17,33 +21,30 @@ def get_vix_price():
 
 
 def get_vix_history():
-    """Retorna candles históricos usando TradingView."""
-    vix = TA_Handler(
-        symbol="VIX",
-        screener="america",
-        exchange="TVC",
-        interval=Interval.INTERVAL_1_MINUTE
+    """Candles de 1 minuto do VIX via Alpha Vantage."""
+    url = (
+        "https://www.alphavantage.co/query?"
+        "function=TIME_SERIES_INTRADAY&symbol=^VIX&interval=1min&apikey=" + API_KEY
     )
-    data = vix.get_analysis()
-    candles = data.indicators.get("Recommend.Other", None)
 
-    # tradingview_ta não fornece candles diretamente,
-    # então usamos uma técnica alternativa:
-    # pegamos o histórico via "oscillators" e "moving averages"
-    # mas isso não dá candles reais.
-    # Então vamos usar uma API pública alternativa:
-    import requests
-
-    url = "https://query1.finance.yahoo.com/v8/finance/chart/^VIX?interval=1m&range=2h"
     r = requests.get(url).json()
 
-    timestamps = r["chart"]["result"][0]["timestamp"]
-    closes = r["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+    if "Time Series (1min)" not in r:
+        print("Erro ao obter histórico da Alpha Vantage:", r)
+        return None
 
-    df = pd.DataFrame({
-        "timestamp": timestamps,
-        "close": closes
-    })
+    ts = r["Time Series (1min)"]
+
+    df = pd.DataFrame([
+        {
+            "timestamp": datetime.fromisoformat(t.replace(" ", "T")),
+            "close": float(values["4. close"])
+        }
+        for t, values in ts.items()
+    ])
+
+    df = df.sort_values("timestamp")
+    df = df.reset_index(drop=True)
 
     return df
 
@@ -55,18 +56,15 @@ def variacao(atual, passado):
 def process_vix():
     print("\n--- COLETANDO DADOS DO VIX ---")
     agora = datetime.now().isoformat(timespec="seconds")
-    print(f"Horário: {agora}")
+    print("Horário:", agora)
 
     preco_atual = get_vix_price()
-    print(f"Preço atual do VIX: {preco_atual}")
+    print("Preço atual:", preco_atual)
 
     dados = get_vix_history()
-
-    if len(dados) < 60:
+    if dados is None or len(dados) < 60:
         print("Histórico insuficiente.")
         return
-
-    dados = dados.sort_values("timestamp")
 
     preco_5 = dados.iloc[-5]["close"]
     preco_15 = dados.iloc[-15]["close"]
@@ -79,10 +77,10 @@ def process_vix():
     var_60 = variacao(preco_atual, preco_60)
 
     print("\n--- VARIAÇÕES ---")
-    print(f"Variação 5 min:  {var_5:.2f}%")
-    print(f"Variação 15 min: {var_15:.2f}%")
-    print(f"Variação 30 min: {var_30:.2f}%")
-    print(f"Variação 60 min: {var_60:.2f}%")
+    print(f"5 min:  {var_5:.2f}%")
+    print(f"15 min: {var_15:.2f}%")
+    print(f"30 min: {var_30:.2f}%")
+    print(f"60 min: {var_60:.2f}%")
 
     registro = {
         "timestamp": agora,
