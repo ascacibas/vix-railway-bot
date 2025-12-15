@@ -7,7 +7,6 @@ from tradingview_ta import TA_Handler, Interval
 # SUA CHAVE DO RAPIDAPI
 RAPIDAPI_KEY = "296ad269ddmsh9a51510151a5714p118b65jsn9ac449b7b4d4"
 
-
 def get_vix_price():
     """Preço atual do VIX via TradingView (1m)."""
     vix = TA_Handler(
@@ -85,16 +84,21 @@ def get_previous_close():
         print("Erro ao obter fechamento anterior:", r)
         return None
 
-    if len(closes) < 2:
+    # Filtrar apenas valores válidos (não None)
+    closes_validos = [c for c in closes if c is not None]
+
+    if len(closes_validos) < 2:
+        print("Fechamentos diários insuficientes ou todos None:", closes)
         return None
 
-    return float(closes[-2])  # penúltimo = fechamento do dia anterior
+    # penúltimo fechamento válido = dia anterior
+    return float(closes_validos[-2])
 
 
 def variacao(atual, passado):
     if passado == 0:
         return 0.0
-    return (atual - passado) / passado * 100
+    return (preco_atual - passado) / passado * 100
 
 
 def process_vix():
@@ -121,7 +125,7 @@ def process_vix():
     # fechamento do dia anterior
     fechamento_anterior = get_previous_close()
     if fechamento_anterior is None:
-        print("Não foi possível obter o fechamento anterior.")
+        print("Não foi possível obter o fechamento anterior (valores None ou insuficientes).")
         return
 
     var_fechamento_anterior = variacao(preco_atual, fechamento_anterior)
