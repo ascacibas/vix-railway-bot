@@ -4,8 +4,8 @@ import pandas as pd
 from datetime import datetime
 from tradingview_ta import TA_Handler, Interval
 
-
-API_KEY = "J77M946G4RI4XHD3"  # Alpha Vantage
+# SUA CHAVE DO RAPIDAPI
+RAPIDAPI_KEY = "296ad269ddmsh9a51510151a5714p118b65jsn9ac449b7b4d"
 
 
 def get_vix_price():
@@ -21,26 +21,29 @@ def get_vix_price():
 
 
 def get_vix_history():
-    """Candles de 1 minuto do VIX via Alpha Vantage."""
-    url = (
-        "https://www.alphavantage.co/query?"
-        "function=TIME_SERIES_INTRADAY&symbol=VIX&interval=1min&apikey=" + API_KEY
-    )
+    """Candles de 1 minuto do VIX via Yahoo Finance (RapidAPI)."""
 
-    r = requests.get(url).json()
+    url = "https://yahoo-finance166.p.rapidapi.com/api/news/list?snippetCount=500&region=US"
 
-    if "Time Series (1min)" not in r:
-        print("Erro ao obter histórico da Alpha Vantage:", r)
+    headers = {
+        "x-rapidapi-key": RAPIDAPI_KEY,
+        "x-rapidapi-host": "yahoo-finance166.p.rapidapi.com"
+    }
+
+    r = requests.get(url, headers=headers).json()
+
+    if "items" not in r:
+        print("Erro ao obter histórico:", r)
         return None
 
-    ts = r["Time Series (1min)"]
+    candles = r["items"]
 
     df = pd.DataFrame([
         {
-            "timestamp": datetime.fromisoformat(t.replace(" ", "T")),
-            "close": float(values["4. close"])
+            "timestamp": datetime.fromtimestamp(c["date"]),
+            "close": float(c["close"])
         }
-        for t, values in ts.items()
+        for c in candles
     ])
 
     df = df.sort_values("timestamp")
