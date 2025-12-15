@@ -82,10 +82,10 @@ def process_vix():
     var_60 = variacao(preco_atual, preco_60)
 
     print("\n--- VARIAÇÕES ---")
-    print(f"5 min:  {var_5:.2f}%")
-    print(f"15 min: {var_15:.2f}%")
-    print(f"30 min: {var_30:.2f}%")
-    print(f"60 min: {var_60:.2f}%")
+    print(f"5 min:  {var_5:.2f}%  (valor: {preco_5})")
+    print(f"15 min: {var_15:.2f}%  (valor: {preco_15})")
+    print(f"30 min: {var_30:.2f}%  (valor: {preco_30})")
+    print(f"60 min: {var_60:.2f}%  (valor: {preco_60})")
 
     registro = {
         "timestamp": agora,
