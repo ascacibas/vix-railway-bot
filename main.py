@@ -5,7 +5,7 @@ from datetime import datetime
 from tradingview_ta import TA_Handler, Interval
 
 # SUA CHAVE DO RAPIDAPI
-RAPIDAPI_KEY = "296ad269ddmsh9a51510151a5714p118b65jsn9ac449b7b4d"
+RAPIDAPI_KEY = "296ad269ddmsh9a51510151a5714p118b65jsn9ac449b7b4d4"
 
 
 def get_vix_price():
@@ -23,11 +23,11 @@ def get_vix_price():
 def get_vix_history():
     """Candles de 1 minuto do VIX via Yahoo Finance (RapidAPI)."""
 
-    url = "https://yahoo-finance166.p.rapidapi.com/api/news/list?snippetCount=500&region=US"
+    url = "https://apidojo-yahoo-finance-v1.p.rapidapi.com/stock/v2/get-timeseries?symbol=IBM&region=US"
 
     headers = {
         "x-rapidapi-key": RAPIDAPI_KEY,
-        "x-rapidapi-host": "yahoo-finance166.p.rapidapi.com"
+        "x-rapidapi-host": "apidojo-yahoo-finance-v1.p.rapidapi.com"
     }
 
     r = requests.get(url, headers=headers).json()
